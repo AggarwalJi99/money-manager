@@ -48,17 +48,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final List<Transaction> transactions = [];
 
-    double categoryExpenses(String category) {
-      final now = DateTime.now();
-      return transactions
-          .where((t) =>
-              !t.isIncome &&
-              t.category == category &&
-              t.date.year == now.year &&
-              t.date.month == now.month)
-          .fold(0.0, (sum, t) => sum + t.amount);
-    }
-
   double get monthlyIncome {
     final now = DateTime.now();
     return transactions
@@ -198,117 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 28),
 
             const Text(
-
-
-              "Spending by Category",
-
-
-              style: TextStyle(
-
-
-                color: Colors.white,
-
-
-                fontSize: 20,
-
-
-                fontWeight: FontWeight.bold,
-
-
-              ),
-
-
-            ),
-
-
-            const SizedBox(height: 12),
-
-
-            ...["Food", "Transport", "Lifestyle", "Bills"].map(
-
-
-              (category) => Padding(
-
-
-                padding: const EdgeInsets.only(bottom: 10),
-
-
-                child: Row(
-
-
-                  children: [
-
-
-                    Expanded(
-
-
-                      child: Text(
-
-
-                        category,
-
-
-                        style: const TextStyle(
-
-
-                          color: Colors.white70,
-
-
-                          fontSize: 15,
-
-
-                        ),
-
-
-                      ),
-
-
-                    ),
-
-
-                    Text(
-
-
-                      "₹${categoryExpenses(category).toStringAsFixed(2)}",
-
-
-                      style: const TextStyle(
-
-
-                        color: Colors.white,
-
-
-                        fontSize: 15,
-
-
-                        fontWeight: FontWeight.bold,
-
-
-                      ),
-
-
-                    ),
-
-
-                  ],
-
-
-                ),
-
-
-              ),
-
-
-            ),
-
-
-            const SizedBox(height: 18),
-
-
-            const Text(
-
-
-              "Recent Transactions",
+              'Recent Transactions',
               style: TextStyle(
                 fontSize: 21,
                 fontWeight: FontWeight.bold,
