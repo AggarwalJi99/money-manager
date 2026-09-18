@@ -48,6 +48,24 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final List<Transaction> transactions = [];
 
+  String searchQuery = '';
+  String transactionFilter = 'All';
+
+  List<Transaction> get filteredTransactions {
+    return transactions.where((transaction) {
+      final matchesSearch =
+          transaction.category.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          transaction.note.toLowerCase().contains(searchQuery.toLowerCase());
+
+      final matchesType =
+          transactionFilter == 'All' ||
+          (transactionFilter == 'Income' && transaction.isIncome) ||
+          (transactionFilter == 'Expense' && !transaction.isIncome);
+
+      return matchesSearch && matchesType;
+    }).toList();
+  }
+
     double categoryExpenses(String category) {
       final now = DateTime.now();
       return transactions
@@ -183,15 +201,68 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: double.infinity,
               height: 180,
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B1D22),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Center(
-                child: Text(
-                  'Spending chart will appear here',
-                  style: TextStyle(color: Colors.white54),
-                ),
+              child: Builder(
+                builder: (context) {
+                  final categories = [
+                    'Food',
+                    'Transport',
+                    'Lifestyle',
+                    'Bills',
+                  ];
+
+                  final total = categories.fold<double>(
+                    0,
+                    (sum, category) => sum + categoryExpenses(category),
+                  );
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: categories.map((category) {
+                      final amount = categoryExpenses(category);
+                      final barHeight =
+                          total == 0 ? 0.0 : (amount / total) * 100;
+
+                      return Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              '₹${amount.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              width: 28,
+                              height: barHeight,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              category,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 10,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
             ),
 
@@ -317,7 +388,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 15),
 
-            if (transactions.isEmpty)
+            TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Search transactions...',
+                hintStyle: const TextStyle(color: Colors.white54),
+                prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                filled: true,
+                fillColor: const Color(0xFF1B1D22),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                for (final filter in ['All', 'Income', 'Expense'])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(filter),
+                      selected: transactionFilter == filter,
+                      onSelected: (_) {
+                        setState(() {
+                          transactionFilter = filter;
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 15),
+
+            if (filteredTransactions.isEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -333,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             else
-              ...transactions.take(5).map(
+              ...filteredTransactions.take(5).map(
                 (transaction) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(16),
