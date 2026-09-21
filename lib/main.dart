@@ -415,6 +415,59 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: Colors.white54,
                                     ),
                                   ),
+                                if (transaction.receiptPath != null)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton.icon(
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return AlertDialog(
+                                              title: const Text('Receipt'),
+                                              content: FutureBuilder(
+                                                future: XFile(
+                                                  transaction.receiptPath!,
+                                                ).readAsBytes(),
+                                                builder: (context, snapshot) {
+                                                  if (snapshot.connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    return const SizedBox(
+                                                      height: 200,
+                                                      child: Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
+                                                    );
+                                                  }
+
+                                                  if (!snapshot.hasData) {
+                                                    return const Text(
+                                                      'Unable to load receipt.',
+                                                    );
+                                                  }
+
+                                                  return Image.memory(
+                                                    snapshot.data!,
+                                                    fit: BoxFit.contain,
+                                                  );
+                                                },
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: const Text('Close'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                      icon: const Icon(Icons.receipt_long),
+                                      label: const Text('View Receipt'),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
