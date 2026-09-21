@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 
 void main() {
@@ -29,7 +31,8 @@ class Transaction {
   final String category;
   final String note;
   final DateTime date;
-  final String? receiptPath; // null = no receipt attached
+  final String? receiptPath; // original path
+  final String? receiptData; // base64 image data for persistence
 
   Transaction({
     required this.isIncome,
@@ -38,6 +41,7 @@ class Transaction {
     required this.note,
     required this.date,
     this.receiptPath,
+    this.receiptData,
   });
 }
 
@@ -122,6 +126,57 @@ class _HomeScreenState extends State<HomeScreen> {
     return total;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    loadTransactions();
+  }
+
+  Future<void> loadTransactions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedTransactions = prefs.getStringList('transactions') ?? [];
+
+    final loadedTransactions = savedTransactions.map((item) {
+      final data = jsonDecode(item) as Map<String, dynamic>;
+
+      return Transaction(
+        isIncome: data['isIncome'] as bool,
+        amount: (data['amount'] as num).toDouble(),
+        category: data['category'] as String,
+        note: data['note'] as String,
+        date: DateTime.parse(data['date'] as String),
+        receiptPath: data['receiptPath'] as String?,
+        receiptData: data['receiptData'] as String?,
+      );
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        transactions
+          ..clear()
+          ..addAll(loadedTransactions);
+      });
+    }
+  }
+
+  Future<void> saveTransactions() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedTransactions = transactions.map((transaction) {
+      return jsonEncode({
+        'isIncome': transaction.isIncome,
+        'amount': transaction.amount,
+        'category': transaction.category,
+        'note': transaction.note,
+        'date': transaction.date.toIso8601String(),
+        'receiptPath': transaction.receiptPath,
+        'receiptData': transaction.receiptData,
+      });
+    }).toList();
+
+    await prefs.setStringList('transactions', savedTransactions);
+  }
+
   Future<void> addTransaction() async {
     final transaction = await Navigator.push<Transaction>(
       context,
@@ -132,6 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         transactions.insert(0, transaction);
       });
+
+      await saveTransactions();
     }
   }
 
@@ -415,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: Colors.white54,
                                     ),
                                   ),
-                                if (transaction.receiptPath != null)
+                                if (transaction.receiptData != null)
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: TextButton.icon(
@@ -426,9 +483,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                             return AlertDialog(
                                               title: const Text('Receipt'),
                                               content: FutureBuilder(
-                                                future: XFile(
-                                                  transaction.receiptPath!,
-                                                ).readAsBytes(),
+                                                future: Future.value(
+                                                  base64Decode(
+                                                    transaction.receiptData!,
+                                                  ),
+                                                ),
                                                 builder: (context, snapshot) {
                                                   if (snapshot.connectionState ==
                                                       ConnectionState.waiting) {
@@ -505,12 +564,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final noteController = TextEditingController();
 
   String? _receiptPath;
+  String? _receiptData;
 
   Future<void> _pickReceipt() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+      maxWidth: 1600,
+    );
     if (picked != null) {
+      final bytes = await picked.readAsBytes();
       setState(() {
         _receiptPath = picked.path;
+        _receiptData = base64Encode(bytes);
       });
     }
   }
@@ -536,6 +602,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       note: noteController.text.trim(),
       date: DateTime.now(),
       receiptPath: _receiptPath,
+      receiptData: _receiptData,
     );
 
     Navigator.pop(context, transaction);
