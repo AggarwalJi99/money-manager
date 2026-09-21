@@ -25,6 +25,22 @@ class FinTrackApp extends StatelessWidget {
   }
 }
 
+class Bill {
+  final String name;
+  final double amount;
+  final DateTime dueDate;
+  final String vendor;
+  final bool isPaid;
+
+  Bill({
+    required this.name,
+    required this.amount,
+    required this.dueDate,
+    required this.vendor,
+    this.isPaid = false,
+  });
+}
+
 class Transaction {
   final bool isIncome;
   final double amount;
@@ -54,6 +70,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final List<Transaction> transactions = [];
+  final List<Bill> bills = [];
 
   String searchQuery = '';
   String transactionFilter = 'All';
@@ -207,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Net Balance',
               style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
@@ -225,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF1B1D22),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.notifications_none, size: 30),
                   SizedBox(width: 14),
@@ -241,10 +258,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         SizedBox(height: 5),
-                        Text(
-                          'No upcoming bills',
-                          style: TextStyle(color: Colors.white60),
-                        ),
+                        if (bills.isEmpty)
+  Text(
+    'No upcoming bills',
+    style: TextStyle(color: Colors.white60),
+  )
+else
+  ...bills
+      .where((bill) => !bill.isPaid)
+      .take(3)
+      .map(
+        (bill) => ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            bill.name,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            '${bill.vendor} • Due ${bill.dueDate.day}/${bill.dueDate.month}/${bill.dueDate.year}',
+          ),
+          trailing: Text(
+            '₹${bill.amount.toStringAsFixed(0)}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
                       ],
                     ),
                   ),
@@ -254,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 28),
 
-            const Text(
+            Text(
               'This Month',
               style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
             ),
@@ -332,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 28),
 
-            const Text(
+            Text(
               "Spending by Category",
               style: TextStyle(
                 color: Colors.white,
@@ -372,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 18),
 
-            const Text(
+            Text(
               "Recent Transactions",
               style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
             ),
@@ -542,8 +580,196 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: addTransaction,
-        child: const Icon(Icons.add),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return SafeArea(
+                    child: Wrap(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.receipt_long),
+                          title: const Text('Add Transaction'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            addTransaction();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.event_note),
+                          title: const Text('Add Bill'),
+                          onTap: () async {
+                            Navigator.pop(context);
+
+                            final bill = await Navigator.push<Bill>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddBillScreen(),
+                              ),
+                            );
+
+                            if (!context.mounted) return;
+
+                            if (bill != null) {
+                              setState(() {
+                                bills.insert(0, bill);
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Bill "${bill.name}" added successfully',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+            child: const Icon(Icons.add),
+          ),
+    );
+  }
+}
+
+
+class AddBillScreen extends StatefulWidget {
+  const AddBillScreen({super.key});
+
+  @override
+  State<AddBillScreen> createState() => _AddBillScreenState();
+}
+
+class _AddBillScreenState extends State<AddBillScreen> {
+  final _nameController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _vendorController = TextEditingController();
+
+  DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
+  bool _isPaid = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _amountController.dispose();
+    _vendorController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDueDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dueDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        _dueDate = picked;
+      });
+    }
+  }
+
+  void _saveBill() {
+    final name = _nameController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+    final vendor = _vendorController.text.trim();
+
+    if (name.isEmpty || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a bill name and valid amount'),
+        ),
+      );
+      return;
+    }
+
+    final bill = Bill(
+      name: name,
+      amount: amount,
+      dueDate: _dueDate,
+      vendor: vendor,
+      isPaid: _isPaid,
+    );
+
+    Navigator.pop(context, bill);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Bill'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Bill Name',
+              hintText: 'e.g. Electricity',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+            ),
+            decoration: const InputDecoration(
+              labelText: 'Amount',
+              prefixText: '₹ ',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _vendorController,
+            decoration: const InputDecoration(
+              labelText: 'Vendor',
+              hintText: 'e.g. CESC',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Due Date'),
+            subtitle: Text(
+              '${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
+            ),
+            trailing: OutlinedButton(
+              onPressed: _selectDueDate,
+              child: const Text('Change'),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Paid'),
+            value: _isPaid,
+            onChanged: (value) {
+              setState(() {
+                _isPaid = value;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 50,
+            child: FilledButton(
+              onPressed: _saveBill,
+              child: const Text('Save Bill'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -619,7 +845,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Transaction Type',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -658,7 +884,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 25),
 
-            const Text(
+            Text(
               'Amount',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -679,7 +905,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 25),
 
-            const Text(
+            Text(
               'Category',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -705,7 +931,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 25),
 
-            const Text(
+            Text(
               'Note',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -722,7 +948,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 35),
 
-            const Text(
+            Text(
               'Receipt',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -740,7 +966,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   const SizedBox(width: 10),
                   const Icon(Icons.check_circle, color: Colors.green, size: 20),
                   const SizedBox(width: 4),
-                  const Text('Attached', style: TextStyle(color: Colors.green)),
+                  Text('Attached', style: TextStyle(color: Colors.green)),
                 ],
               ],
             ),
