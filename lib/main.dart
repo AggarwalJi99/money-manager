@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   runApp(const FinTrackApp());
@@ -28,6 +29,7 @@ class Transaction {
   final String category;
   final String note;
   final DateTime date;
+  final String? receiptPath; // null = no receipt attached
 
   Transaction({
     required this.isIncome,
@@ -35,6 +37,7 @@ class Transaction {
     required this.category,
     required this.note,
     required this.date,
+    this.receiptPath,
   });
 }
 
@@ -54,7 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Transaction> get filteredTransactions {
     return transactions.where((transaction) {
       final matchesSearch =
-          transaction.category.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          transaction.category.toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ) ||
           transaction.note.toLowerCase().contains(searchQuery.toLowerCase());
 
       final matchesType =
@@ -66,28 +71,40 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
   }
 
-    double categoryExpenses(String category) {
-      final now = DateTime.now();
-      return transactions
-          .where((t) =>
+  double categoryExpenses(String category) {
+    final now = DateTime.now();
+    return transactions
+        .where(
+          (t) =>
               !t.isIncome &&
               t.category == category &&
               t.date.year == now.year &&
-              t.date.month == now.month)
-          .fold(0.0, (sum, t) => sum + t.amount);
-    }
+              t.date.month == now.month,
+        )
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
 
   double get monthlyIncome {
     final now = DateTime.now();
     return transactions
-        .where((t) => t.isIncome && t.date.year == now.year && t.date.month == now.month)
+        .where(
+          (t) =>
+              t.isIncome &&
+              t.date.year == now.year &&
+              t.date.month == now.month,
+        )
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
   double get monthlyExpenses {
     final now = DateTime.now();
     return transactions
-        .where((t) => !t.isIncome && t.date.year == now.year && t.date.month == now.month)
+        .where(
+          (t) =>
+              !t.isIncome &&
+              t.date.year == now.year &&
+              t.date.month == now.month,
+        )
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
@@ -108,9 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> addTransaction() async {
     final transaction = await Navigator.push<Transaction>(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AddTransactionScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
     );
 
     if (transaction != null) {
@@ -137,18 +152,12 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Text(
               'Net Balance',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
             const SizedBox(height: 8),
             Text(
               '₹${balance.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 38,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 38, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
 
@@ -190,10 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const Text(
               'This Month',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 15),
@@ -225,8 +231,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: categories.map((category) {
                       final amount = categoryExpenses(category);
-                      final barHeight =
-                          total == 0 ? 0.0 : (amount / total) * 100;
+                      final barHeight = total == 0
+                          ? 0.0
+                          : (amount / total) * 100;
 
                       return Expanded(
                         child: Column(
@@ -269,121 +276,48 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 28),
 
             const Text(
-
-
               "Spending by Category",
-
-
               style: TextStyle(
-
-
                 color: Colors.white,
-
-
                 fontSize: 20,
-
-
                 fontWeight: FontWeight.bold,
-
-
               ),
-
-
             ),
-
 
             const SizedBox(height: 12),
 
-
             ...["Food", "Transport", "Lifestyle", "Bills"].map(
-
-
               (category) => Padding(
-
-
                 padding: const EdgeInsets.only(bottom: 10),
-
-
                 child: Row(
-
-
                   children: [
-
-
                     Expanded(
-
-
                       child: Text(
-
-
                         category,
-
-
                         style: const TextStyle(
-
-
                           color: Colors.white70,
-
-
                           fontSize: 15,
-
-
                         ),
-
-
                       ),
-
-
                     ),
-
-
                     Text(
-
-
                       "₹${categoryExpenses(category).toStringAsFixed(2)}",
-
-
                       style: const TextStyle(
-
-
                         color: Colors.white,
-
-
                         fontSize: 15,
-
-
                         fontWeight: FontWeight.bold,
-
-
                       ),
-
-
                     ),
-
-
                   ],
-
-
                 ),
-
-
               ),
-
-
             ),
-
 
             const SizedBox(height: 18),
 
-
             const Text(
-
-
               "Recent Transactions",
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 15),
@@ -446,52 +380,52 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             else
-              ...filteredTransactions.take(5).map(
-                (transaction) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1B1D22),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        transaction.isIncome
-                            ? Icons.arrow_downward
-                            : Icons.arrow_upward,
+              ...filteredTransactions
+                  .take(5)
+                  .map(
+                    (transaction) => Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B1D22),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              transaction.category,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (transaction.note.isNotEmpty)
-                              Text(
-                                transaction.note,
-                                style: const TextStyle(
-                                  color: Colors.white54,
+                      child: Row(
+                        children: [
+                          Icon(
+                            transaction.isIncome
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  transaction.category,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
+                                if (transaction.note.isNotEmpty)
+                                  Text(
+                                    transaction.note,
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${transaction.isIncome ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${transaction.isIncome ? '+' : '-'}₹${transaction.amount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
           ],
         ),
       ),
@@ -507,8 +441,7 @@ class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});
 
   @override
-  State<AddTransactionScreen> createState() =>
-      _AddTransactionScreenState();
+  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
@@ -518,26 +451,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final amountController = TextEditingController();
   final noteController = TextEditingController();
 
-  final expenseCategories = [
-    'Food',
-    'Transport',
-    'Lifestyle',
-    'Bills',
-  ];
+  String? _receiptPath;
 
-  final incomeCategories = [
-    'Salary',
-    'Other Income',
-  ];
+  Future<void> _pickReceipt() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _receiptPath = picked.path;
+      });
+    }
+  }
+
+  final expenseCategories = ['Food', 'Transport', 'Lifestyle', 'Bills'];
+
+  final incomeCategories = ['Salary', 'Other Income'];
 
   void saveTransaction() {
     final amount = double.tryParse(amountController.text.trim());
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid amount'),
-        ),
+        const SnackBar(content: Text('Please enter a valid amount')),
       );
       return;
     }
@@ -548,6 +482,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       category: category,
       note: noteController.text.trim(),
       date: DateTime.now(),
+      receiptPath: _receiptPath,
     );
 
     Navigator.pop(context, transaction);
@@ -558,9 +493,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final categories = isIncome ? incomeCategories : expenseCategories;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Transaction'),
-      ),
+      appBar: AppBar(title: const Text('Add Transaction')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -568,10 +501,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           children: [
             const Text(
               'Transaction Type',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
@@ -610,10 +540,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const Text(
               'Amount',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
@@ -634,25 +561,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const Text(
               'Category',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
 
             DropdownButtonFormField<String>(
               initialValue: category,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(border: OutlineInputBorder()),
               items: categories
                   .map(
-                    (item) => DropdownMenuItem(
-                      value: item,
-                      child: Text(item),
-                    ),
+                    (item) => DropdownMenuItem(value: item, child: Text(item)),
                   )
                   .toList(),
               onChanged: (value) {
@@ -668,10 +587,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const Text(
               'Note',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
@@ -685,6 +601,31 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
 
             const SizedBox(height: 35),
+
+            const Text(
+              'Receipt',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _pickReceipt,
+                  icon: const Icon(Icons.receipt_long),
+                  label: const Text('Attach Receipt'),
+                ),
+                if (_receiptPath != null) ...[
+                  const SizedBox(width: 10),
+                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  const SizedBox(width: 4),
+                  const Text('Attached', style: TextStyle(color: Colors.green)),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 25),
 
             SizedBox(
               width: double.infinity,
