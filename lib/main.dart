@@ -602,20 +602,20 @@ else
                             Navigator.pop(context);
 
                             final bill = await Navigator.push<Bill>(
-                              context,
+                              this.context,
                               MaterialPageRoute(
                                 builder: (context) => const AddBillScreen(),
                               ),
                             );
 
-                            if (!context.mounted) return;
+                            if (!mounted) return;
 
                             if (bill != null) {
                               setState(() {
                                 bills.insert(0, bill);
                               });
 
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              ScaffoldMessenger.of(this.context).showSnackBar(
                                 SnackBar(
                                   content: Text(
                                     'Bill "${bill.name}" added successfully',
