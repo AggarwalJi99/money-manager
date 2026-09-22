@@ -39,6 +39,22 @@ class Bill {
     required this.vendor,
     this.isPaid = false,
   });
+
+  Bill copyWith({
+    String? name,
+    double? amount,
+    DateTime? dueDate,
+    String? vendor,
+    bool? isPaid,
+  }) {
+    return Bill(
+      name: name ?? this.name,
+      amount: amount ?? this.amount,
+      dueDate: dueDate ?? this.dueDate,
+      vendor: vendor ?? this.vendor,
+      isPaid: isPaid ?? this.isPaid,
+    );
+  }
 }
 
 class Transaction {
@@ -147,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     loadTransactions();
+    loadBills();
   }
 
   Future<void> loadTransactions() async {
@@ -174,6 +191,47 @@ class _HomeScreenState extends State<HomeScreen> {
           ..addAll(loadedTransactions);
       });
     }
+  }
+
+  Future<void> loadBills() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedBills = prefs.getStringList('bills') ?? [];
+
+    final loadedBills = savedBills.map((item) {
+      final data = jsonDecode(item) as Map<String, dynamic>;
+
+      return Bill(
+        name: data['name'] as String,
+        amount: (data['amount'] as num).toDouble(),
+        dueDate: DateTime.parse(data['dueDate'] as String),
+        vendor: data['vendor'] as String,
+        isPaid: data['isPaid'] as bool? ?? false,
+      );
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        bills
+          ..clear()
+          ..addAll(loadedBills);
+      });
+    }
+  }
+
+  Future<void> saveBills() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedBills = bills.map((bill) {
+      return jsonEncode({
+        'name': bill.name,
+        'amount': bill.amount,
+        'dueDate': bill.dueDate.toIso8601String(),
+        'vendor': bill.vendor,
+        'isPaid': bill.isPaid,
+      });
+    }).toList();
+
+    await prefs.setStringList('bills', savedBills);
   }
 
   Future<void> saveTransactions() async {
@@ -270,6 +328,25 @@ else
       .map(
         (bill) => ListTile(
           contentPadding: EdgeInsets.zero,
+          onTap: () async {
+            final updatedBill = await Navigator.push<Bill>(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BillDetailsScreen(bill: bill),
+              ),
+            );
+
+            if (!mounted || updatedBill == null) return;
+
+            final index = bills.indexOf(bill);
+            if (index == -1) return;
+
+            setState(() {
+              bills[index] = updatedBill;
+            });
+
+            await saveBills();
+          },
           title: Text(
             bill.name,
             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -615,6 +692,10 @@ else
                                 bills.insert(0, bill);
                               });
 
+                              await saveBills();
+
+                              if (!mounted) return;
+
                               ScaffoldMessenger.of(this.context).showSnackBar(
                                 SnackBar(
                                   content: Text(
@@ -637,6 +718,122 @@ else
   }
 }
 
+
+
+class BillDetailsScreen extends StatelessWidget {
+  final Bill bill;
+
+  const BillDetailsScreen({
+    super.key,
+    required this.bill,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Bill Details'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              bill.name,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _detailRow('Amount', '₹${bill.amount.toStringAsFixed(2)}'),
+            _detailRow(
+              'Vendor',
+              bill.vendor.isEmpty ? 'Not specified' : bill.vendor,
+            ),
+            _detailRow(
+              'Due Date',
+              '${bill.dueDate.day}/${bill.dueDate.month}/${bill.dueDate.year}',
+            ),
+            _detailRow(
+              'Status',
+              bill.isPaid ? 'Paid' : 'Unpaid',
+            ),
+            const SizedBox(height: 20),
+            if (!bill.isPaid)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(
+                      context,
+                      bill.copyWith(isPaid: true),
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Mark as Paid'),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green),
+                    SizedBox(width: 10),
+                    Text(
+                      'This bill is already paid',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 15,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class AddBillScreen extends StatefulWidget {
   const AddBillScreen({super.key});
