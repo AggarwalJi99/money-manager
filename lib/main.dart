@@ -25,6 +25,17 @@ class FinTrackApp extends StatelessWidget {
   }
 }
 
+String getBillStatus(Bill bill) {
+  final today = DateTime.now();
+  final due = DateTime(bill.dueDate.year, bill.dueDate.month, bill.dueDate.day);
+  final current = DateTime(today.year, today.month, today.day);
+
+  if (bill.isPaid) return 'Paid';
+  if (due.isBefore(current)) return 'Overdue';
+  if (due.isAtSameMomentAs(current)) return 'Due Today';
+  return 'Upcoming';
+}
+
 class Bill {
   final String name;
   final double amount;
@@ -351,9 +362,29 @@ else
             bill.name,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          subtitle: Text(
-            '${bill.vendor} • Due ${bill.dueDate.day}/${bill.dueDate.month}/${bill.dueDate.year}',
-          ),
+          subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${bill.vendor} • Due ${bill.dueDate.day}/${bill.dueDate.month}/${bill.dueDate.year}',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  getBillStatus(bill),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: bill.isPaid
+                        ? Colors.green
+                        : getBillStatus(bill) == 'Overdue'
+                            ? Colors.red
+                            : getBillStatus(bill) == 'Due Today'
+                                ? Colors.orange
+                                : Colors.blue,
+                  ),
+                ),
+              ],
+            ),
           trailing: Text(
             '₹${bill.amount.toStringAsFixed(0)}',
             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -364,6 +395,27 @@ else
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BillsScreen(
+  bills: bills,
+  onBillsChanged: saveBills,
+),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('View All Bills'),
               ),
             ),
 
@@ -674,7 +726,7 @@ else
                         ),
                         ListTile(
                           leading: const Icon(Icons.event_note),
-                          title: const Text('Add Bill'),
+        title: const Text('Add Bill'),
                           onTap: () async {
                             Navigator.pop(context);
 
@@ -720,6 +772,180 @@ else
 
 
 
+
+class BillsScreen extends StatefulWidget {
+  final List<Bill> bills;
+  final Future<void> Function() onBillsChanged;
+
+  const BillsScreen({
+    super.key,
+    required this.bills,
+    required this.onBillsChanged,
+  });
+
+  @override
+  State<BillsScreen> createState() => _BillsScreenState();
+}
+
+class _BillsScreenState extends State<BillsScreen> {
+
+  @override
+  Widget build(BuildContext context) {
+    final unpaidBills = widget.bills.where((bill) => !bill.isPaid).toList();
+    final paidBills = widget.bills.where((bill) => bill.isPaid).toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Bills'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Unpaid Bills',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (unpaidBills.isEmpty)
+            const Text(
+              'No unpaid bills',
+              style: TextStyle(color: Colors.white60),
+            )
+          else
+            ...unpaidBills.map(
+              (bill) => _billCard(context, bill),
+            ),
+          const SizedBox(height: 28),
+          const Text(
+            'Paid Bills',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (paidBills.isEmpty)
+            const Text(
+              'No paid bills',
+              style: TextStyle(color: Colors.white60),
+            )
+          else
+            ...paidBills.map(
+              (bill) => _billCard(context, bill),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _billCard(BuildContext context, Bill bill) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B1D22),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        onTap: () async {
+          final updatedBill = await Navigator.push<Bill>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BillDetailsScreen(bill: bill),
+            ),
+          );
+
+          if (!mounted || updatedBill == null) return;
+
+          final index = widget.bills.indexOf(bill);
+          if (index == -1) return;
+
+          setState(() {
+            widget.bills[index] = updatedBill;
+          });
+
+          await widget.onBillsChanged();
+        },
+        title: Text(
+          bill.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${bill.vendor} • Due ${bill.dueDate.day}/${bill.dueDate.month}/${bill.dueDate.year}',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  getBillStatus(bill),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: bill.isPaid
+                        ? Colors.green
+                        : getBillStatus(bill) == 'Overdue'
+                            ? Colors.red
+                            : getBillStatus(bill) == 'Due Today'
+                                ? Colors.orange
+                                : Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '₹${bill.amount.toStringAsFixed(0)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Bill?'),
+                    content: Text(
+                      'Are you sure you want to delete "${bill.name}"?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (!mounted || confirmed != true) return;
+
+                final index = widget.bills.indexOf(bill);
+                if (index == -1) return;
+
+                setState(() {
+                  widget.bills.removeAt(index);
+                });
+
+                await widget.onBillsChanged();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class BillDetailsScreen extends StatelessWidget {
   final Bill bill;
 
@@ -761,6 +987,29 @@ class BillDetailsScreen extends StatelessWidget {
               bill.isPaid ? 'Paid' : 'Unpaid',
             ),
             const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final updatedBill = await Navigator.push<Bill>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddBillScreen(
+                        existingBill: bill,
+                      ),
+                    ),
+                  );
+
+                  if (updatedBill != null && context.mounted) {
+                    Navigator.pop(context, updatedBill);
+                  }
+                },
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Edit Bill'),
+              ),
+            ),
+            const SizedBox(height: 12),
             if (!bill.isPaid)
               SizedBox(
                 width: double.infinity,
@@ -836,7 +1085,12 @@ class BillDetailsScreen extends StatelessWidget {
 }
 
 class AddBillScreen extends StatefulWidget {
-  const AddBillScreen({super.key});
+  final Bill? existingBill;
+
+  const AddBillScreen({
+    super.key,
+    this.existingBill,
+  });
 
   @override
   State<AddBillScreen> createState() => _AddBillScreenState();
@@ -849,6 +1103,21 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   bool _isPaid = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final bill = widget.existingBill;
+
+    if (bill != null) {
+      _nameController.text = bill.name;
+      _amountController.text = bill.amount.toString();
+      _vendorController.text = bill.vendor;
+      _dueDate = bill.dueDate;
+      _isPaid = bill.isPaid;
+    }
+  }
 
   @override
   void dispose() {
@@ -963,7 +1232,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
             height: 50,
             child: FilledButton(
               onPressed: _saveBill,
-              child: const Text('Save Bill'),
+              child: Text(widget.existingBill == null ? 'Save Bill' : 'Save Changes'),
             ),
           ),
         ],
