@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'notification_service.dart';
 
-void main() {
+Future<void> main() async {
+  await NotificationService.initialize();
+  await NotificationService.requestPermission();
   runApp(const FinTrackApp());
 }
 
