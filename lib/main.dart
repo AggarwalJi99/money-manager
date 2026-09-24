@@ -246,6 +246,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
 
     await prefs.setStringList('bills', savedBills);
+  await NotificationService.syncBillReminders(
+    bills: bills.map((bill) => {
+      'name': bill.name,
+      'amount': bill.amount,
+      'dueDate': bill.dueDate,
+      'isPaid': bill.isPaid,
+    }).toList(),
+  );
   }
 
   Future<void> saveTransactions() async {
