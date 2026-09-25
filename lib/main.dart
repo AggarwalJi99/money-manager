@@ -5,8 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'notification_service.dart';
 
 Future<void> main() async {
-  await NotificationService.initialize();
-  await NotificationService.requestPermission();
+//   await NotificationService.initialize();
+//   await NotificationService.requestPermission();
   runApp(const FinTrackApp());
 }
 
