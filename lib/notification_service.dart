@@ -40,15 +40,8 @@ class NotificationService {
 
       if (bill['isPaid'] == true) continue;
 
-      final dueDate = bill['dueDate'] as DateTime;
-      final scheduledDate = tz.TZDateTime(
-        tz.local,
-        dueDate.year,
-        dueDate.month,
-        dueDate.day,
-        9,
-      );
-
+    final dueDate = bill['dueDate'] as DateTime;
+    final scheduledDate = tz.TZDateTime(tz.local, dueDate.year, dueDate.month, dueDate.day, 9);
       if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
         continue;
       }
